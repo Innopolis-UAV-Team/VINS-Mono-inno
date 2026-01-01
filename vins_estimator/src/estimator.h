@@ -34,6 +34,7 @@ class Estimator
     void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
     void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
+    void correctScaleWithAltitude(double mavlink_altitude, double mavlink_vz);
 
     // internal
     void clearState();

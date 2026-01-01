@@ -214,21 +214,9 @@ Visualization Manager:
           Frame Timeout: 15
           Frames:
             All Enabled: true
-            base_link:
-              Value: true
-            base_link_frd:
-              Value: true
             body:
               Value: true
             camera:
-              Value: true
-            map:
-              Value: true
-            map_ned:
-              Value: true
-            odom:
-              Value: true
-            odom_ned:
               Value: true
             world:
               Value: true
@@ -239,15 +227,6 @@ Visualization Manager:
           Show Axes: true
           Show Names: true
           Tree:
-            base_link:
-              base_link_frd:
-                {}
-            map:
-              map_ned:
-                {}
-            odom:
-              odom_ned:
-                {}
             world:
               body:
                 camera:
@@ -514,7 +493,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 273.5990905761719
+      Distance: 33.790889739990234
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -522,17 +501,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -27.728181838989258
-        Y: -20.0369815826416
-        Z: 7.146109055611305e-06
+        X: 0
+        Y: 0
+        Z: 0
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.4047963619232178
+      Pitch: 0.6903982758522034
       Target Frame: camera
-      Yaw: 3.779020071029663
+      Yaw: 4.390399932861328
     Saved: ~
 Window Geometry:
   Displays:

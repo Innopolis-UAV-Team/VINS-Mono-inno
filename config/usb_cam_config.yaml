@@ -102,3 +102,12 @@ visualize_camera_size: 0.4      # size of camera marker in RVIZ
 enable_zupt: 1                  # enable zero velocity update to prevent drift when stationary
 zupt_vel_threshold: 0.05        # velocity threshold (m/s) for detecting stationary state
 zupt_acc_threshold: 0.1         # acceleration deviation threshold (m/s^2) from gravity
+
+#imu filtering parameters
+enable_imu_acc_filter: 1        # enable accelerometer outlier rejection and smoothing
+imu_acc_max_change: 50.0        # maximum allowed acceleration change (m/s^2) for outlier detection
+imu_acc_filter_alpha: 0.8       # exponential filter coefficient (0.0-1.0, higher = more smoothing)
+
+#altitude scale correction parameters
+enable_altitude_scale_correction: 1  # enable scale correction using MAVLink altitude
+altitude_correction_factor: 0.1      # correction strength (0.0-1.0, lower = gentler correction)

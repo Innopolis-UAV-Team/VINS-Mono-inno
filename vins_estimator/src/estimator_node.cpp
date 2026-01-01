@@ -7,6 +7,7 @@
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
+#include <nav_msgs/Odometry.h>
 
 #include "estimator.h"
 #include "parameters.h"
@@ -39,6 +40,19 @@ bool init_feature = 0;
 bool init_imu = 1;
 double last_imu_t = 0;
 
+// IMU filtering variables
+Eigen::Vector3d prev_acc(0, 0, 0);
+Eigen::Vector3d filtered_acc(0, 0, 0);
+bool acc_initialized = false;
+const double MAX_ACC_CHANGE = 50.0;  // m/s² - maximum allowed acceleration change
+const double ACC_FILTER_ALPHA = 0.8; // exponential filter coefficient (higher = more smoothing)
+
+// Altitude-based scale correction
+double mavlink_altitude = 0.0;
+double mavlink_vz = 0.0;
+bool mavlink_odom_received = false;
+std::mutex m_odom;
+
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     double t = imu_msg->header.stamp.toSec();
@@ -55,6 +69,26 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     double dy = imu_msg->linear_acceleration.y;
     double dz = imu_msg->linear_acceleration.z;
     Eigen::Vector3d linear_acceleration{dx, dy, dz};
+    
+    // Accelerometer filtering: outlier rejection + exponential smoothing
+    if (!acc_initialized) {
+        prev_acc = linear_acceleration;
+        filtered_acc = linear_acceleration;
+        acc_initialized = true;
+    } else {
+        // Step 1: Outlier detection - reject sudden spikes
+        Eigen::Vector3d acc_diff = linear_acceleration - prev_acc;
+        if (acc_diff.norm() > MAX_ACC_CHANGE) {
+            ROS_WARN("IMU accelerometer spike detected: %.2f m/s² change, using filtered value", acc_diff.norm());
+            linear_acceleration = filtered_acc; // use previous filtered value
+        }
+        
+        // Step 2: Exponential moving average filter for smoothing
+        filtered_acc = ACC_FILTER_ALPHA * filtered_acc + (1.0 - ACC_FILTER_ALPHA) * linear_acceleration;
+        linear_acceleration = filtered_acc;
+        
+        prev_acc = linear_acceleration;
+    }
 
     double rx = imu_msg->angular_velocity.x;
     double ry = imu_msg->angular_velocity.y;
@@ -205,6 +239,15 @@ void relocalization_callback(const sensor_msgs::PointCloudConstPtr &points_msg)
     m_buf.unlock();
 }
 
+void mavlink_odom_callback(const nav_msgs::Odometry::ConstPtr &odom_msg)
+{
+    m_odom.lock();
+    mavlink_altitude = odom_msg->pose.pose.position.z;
+    mavlink_vz = odom_msg->twist.twist.linear.z;
+    mavlink_odom_received = true;
+    m_odom.unlock();
+}
+
 // thread: visual-inertial odometry
 void process()
 {
@@ -236,6 +279,27 @@ void process()
                     dx = imu_msg->linear_acceleration.x;
                     dy = imu_msg->linear_acceleration.y;
                     dz = imu_msg->linear_acceleration.z;
+                    
+                    // Apply accelerometer filtering
+                    Eigen::Vector3d raw_acc(dx, dy, dz);
+                    if (!acc_initialized) {
+                        prev_acc = raw_acc;
+                        filtered_acc = raw_acc;
+                        acc_initialized = true;
+                    } else {
+                        Eigen::Vector3d acc_diff = raw_acc - prev_acc;
+                        if (acc_diff.norm() > MAX_ACC_CHANGE) {
+                            ROS_WARN("IMU spike in process(): %.2f m/s², using filtered", acc_diff.norm());
+                            raw_acc = filtered_acc;
+                        }
+                        filtered_acc = ACC_FILTER_ALPHA * filtered_acc + (1.0 - ACC_FILTER_ALPHA) * raw_acc;
+                        raw_acc = filtered_acc;
+                        prev_acc = raw_acc;
+                    }
+                    dx = raw_acc.x();
+                    dy = raw_acc.y();
+                    dz = raw_acc.z();
+                    
                     rx = imu_msg->angular_velocity.x;
                     ry = imu_msg->angular_velocity.y;
                     rz = imu_msg->angular_velocity.z;
@@ -312,6 +376,14 @@ void process()
                 image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
             }
             estimator.processImage(image, img_msg->header);
+            
+            // Apply altitude-based scale correction using MAVLink odometry
+            m_odom.lock();
+            if (mavlink_odom_received && estimator.solver_flag == Estimator::NON_LINEAR)
+            {
+                estimator.correctScaleWithAltitude(mavlink_altitude, mavlink_vz);
+            }
+            m_odom.unlock();
 
             double whole_t = t_s.toc();
             printStatistics(estimator, whole_t);
@@ -356,6 +428,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
+    ros::Subscriber sub_mavlink_odom = n.subscribe("/mavros/local_position/odom", 100, mavlink_odom_callback);
 
     std::thread measurement_process{process};
     ros::spin();

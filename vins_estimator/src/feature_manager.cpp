@@ -272,6 +272,19 @@ void FeatureManager::removeOutlier()
     }
 }
 
+void FeatureManager::scaleDepth(double scale)
+{
+    // Scale all feature depths (inverse depth parameterization)
+    for (auto &it_per_id : feature)
+    {
+        if (it_per_id.estimated_depth > 0)
+        {
+            // Inverse depth: 1/d, so scaling distance means dividing inverse depth
+            it_per_id.estimated_depth = it_per_id.estimated_depth / scale;
+        }
+    }
+}
+
 void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3d marg_P, Eigen::Matrix3d new_R, Eigen::Vector3d new_P)
 {
     for (auto it = feature.begin(), it_next = feature.begin();

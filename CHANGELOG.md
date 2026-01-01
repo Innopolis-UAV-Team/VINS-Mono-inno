@@ -2,6 +2,44 @@
 
 ## [Unreleased] - 2026-01-01/02
 
+### Added - IMU Data Filtering & Scale Correction
+
+#### Accelerometer Outlier Rejection
+- **Spike detection and filtering** for noisy 9-DOF IMU data
+  - Detects sudden acceleration changes exceeding configurable threshold (default: 50 m/s²)
+  - Rejects outlier measurements and uses previous filtered value
+  - Prevents incorrect velocity/position estimates from bad IMU readings
+  - Applied in both `predict()` and main processing loop
+
+#### Exponential Smoothing Filter
+- **Low-pass filtering** for accelerometer noise reduction
+  - Exponential moving average (EMA) with configurable alpha (default: 0.8)
+  - Reduces high-frequency noise while maintaining responsiveness
+  - Works in conjunction with outlier rejection
+  - Formula: `filtered = alpha * prev_filtered + (1-alpha) * current`
+
+#### Altitude-Based Scale Correction
+- **MAVLink odometry integration** for scale drift prevention
+  - Subscribes to `/mavros/local_position/odom` (nav_msgs/Odometry)
+  - Uses barometer-fused altitude as ground truth reference
+  - Corrects monocular VIO scale drift using altitude comparison
+  - Gentle correction with configurable strength (default: 10% per update)
+  - Safety bounds: only corrects scale ratio between 0.8-1.2
+  - Automatically scales positions, velocities, and feature depths
+  - Only active after successful VIO initialization
+
+#### Configuration Parameters
+```yaml
+# IMU Filtering
+enable_imu_acc_filter: 1           # Enable/disable accelerometer filtering
+imu_acc_max_change: 50.0           # Outlier detection threshold (m/s²)
+imu_acc_filter_alpha: 0.8          # Smoothing factor (0.0-1.0)
+
+# Altitude Scale Correction
+enable_altitude_scale_correction: 1 # Enable/disable scale correction
+altitude_correction_factor: 0.1     # Correction strength (0.0-1.0)
+```
+
 ### Added - Feature Detection & Tracking
 
 #### AGAST Corner Detector
@@ -140,11 +178,13 @@
 ### Technical Details
 
 #### File Changes
+- `vins_estimator/src/estimator_node.cpp`: IMU filtering, MAVLink odometry subscription
+- `vins_estimator/src/estimator.h/cpp`: Scale correction method `correctScaleWithAltitude()`
+- `vins_estimator/src/feature_manager.h/cpp`: Depth scaling method `scaleDepth()`
 - `feature_tracker/src/feature_tracker.cpp`: Core detection and tracking logic
 - `feature_tracker/src/feature_tracker.h`: Added CLAHE member variable
 - `feature_tracker/src/feature_tracker_node.cpp`: Visualization modifications
 - `feature_tracker/src/parameters.h/cpp`: Added FAST_THRESHOLD, USE_BIDIRECTIONAL_FLOW
-- `vins_estimator/src/estimator.cpp`: ZUPT logic in processIMU()
 - `vins_estimator/src/parameters.h/cpp`: Added ZUPT parameters
 - `config/termal_cam_config.yaml`: Thermal camera complete configuration
 - `config/usb_cam_config.yaml`: Parameter updates
@@ -183,6 +223,14 @@ zupt_acc_threshold: 0.1-0.2      # Acceleration deviation threshold (m/s²)
 ```
 
 ### Known Issues & Future Work
+
+#### Addressing 9-DOF IMU Noise
+- **Problem**: 9-DOF IMU occasionally produces incorrect velocity readings
+- **Solution Implemented**: 
+  - Accelerometer spike detection and rejection (threshold: 50 m/s²)
+  - Exponential smoothing filter (alpha: 0.8) 
+  - Altitude-based scale correction using barometer-fused odometry
+- **Result**: Robust to intermittent IMU errors while maintaining accurate orientation from gyroscope
 
 #### Pending Optimizations
 - Multi-threading for AGAST detection (parallel processing)

@@ -1159,3 +1159,50 @@ void Estimator::setReloFrame(double _frame_stamp, int _frame_index, vector<Vecto
     }
 }
 
+void Estimator::correctScaleWithAltitude(double mavlink_altitude, double mavlink_vz)
+{
+    // Only apply scale correction after initialization
+    if (solver_flag != NON_LINEAR)
+        return;
+    
+    // Get current VINS altitude (z-component of position)
+    double vins_altitude = Ps[WINDOW_SIZE].z();
+    double vins_vz = Vs[WINDOW_SIZE].z();
+    
+    // Calculate scale drift: ratio between MAVLink and VINS altitude
+    // Only correct if VINS has moved significantly (avoid division by small numbers)
+    if (std::abs(vins_altitude) < 0.5) {
+        ROS_DEBUG("VINS altitude too small (%.2f m), skipping scale correction", vins_altitude);
+        return;
+    }
+    
+    double scale_ratio = mavlink_altitude / vins_altitude;
+    
+    // Apply correction only if scale drift is reasonable (0.8 - 1.2)
+    // Prevents overcorrection from bad measurements
+    if (scale_ratio < 0.8 || scale_ratio > 1.2) {
+        ROS_WARN("Scale ratio out of bounds: %.3f (MAVLink: %.2f m, VINS: %.2f m), skipping correction", 
+                 scale_ratio, mavlink_altitude, vins_altitude);
+        return;
+    }
+    
+    // Apply gentle correction with smoothing factor
+    const double CORRECTION_FACTOR = 0.1; // 10% correction per update
+    double correction = 1.0 + (scale_ratio - 1.0) * CORRECTION_FACTOR;
+    
+    ROS_INFO("Altitude-based scale correction: %.4f (MAVLink: %.2f m, VINS: %.2f m)", 
+             correction, mavlink_altitude, vins_altitude);
+    
+    // Apply scale correction to positions and velocities in the sliding window
+    for (int i = 0; i <= WINDOW_SIZE; i++)
+    {
+        Ps[i] = Ps[i] * correction;
+        Vs[i] = Vs[i] * correction;
+    }
+    
+    // Also correct feature depths in feature manager
+    f_manager.scaleDepth(correction);
+    
+    ROS_DEBUG("Corrected VINS altitude: %.2f m, velocity: %.2f m/s", Ps[WINDOW_SIZE].z(), Vs[WINDOW_SIZE].z());
+}
+
