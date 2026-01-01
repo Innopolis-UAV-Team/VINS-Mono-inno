@@ -177,31 +177,37 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
             // AGAST_5_8 is generally more robust than FAST
             cv::AGAST(forw_img, keypoints, FAST_THRESHOLD, true);
             
-            // Smart selection: Sort by response (strength) + Spatial suppression (MIN_DIST)
-            // This ensures we pick the strongest features that are well-distributed
-            sort(keypoints.begin(), keypoints.end(), [](const cv::KeyPoint& a, const cv::KeyPoint& b) {
-                return a.response > b.response;
-            });
-
+            // Grid-based selection to ensure uniform distribution (User request: Grid -> uniformly select)
+            // We divide the image into cells of size MIN_DIST and pick the strongest feature in each cell
+            int grid_size = MIN_DIST; 
+            int grid_rows = ROW / grid_size + 1;
+            int grid_cols = COL / grid_size + 1;
+            
+            // Vector to store the best keypoint for each grid cell
+            vector<cv::KeyPoint> grid_best_features(grid_rows * grid_cols);
+            
             for (const auto& kp : keypoints) {
-                if (int(n_pts.size()) >= n_max_cnt) break;
-                
                 // Check against mask (distance to existing tracked features)
+                // mask is 0 where existing features are (setMask draws circles)
                 if (mask.at<uchar>(kp.pt) == 0) continue;
 
-                // Check distance to other new features
-                bool too_close = false;
-                for (const auto& p : n_pts) {
-                    float dx = p.x - kp.pt.x;
-                    float dy = p.y - kp.pt.y;
-                    if (dx*dx + dy*dy < MIN_DIST * MIN_DIST) {
-                        too_close = true;
-                        break;
+                int r = int(kp.pt.y) / grid_size;
+                int c = int(kp.pt.x) / grid_size;
+                
+                if (r >= 0 && r < grid_rows && c >= 0 && c < grid_cols) {
+                    int idx = r * grid_cols + c;
+                    // Keep the feature with the highest response in this grid cell
+                    if (kp.response > grid_best_features[idx].response) {
+                        grid_best_features[idx] = kp;
                     }
                 }
-                
-                if (!too_close) {
+            }
+
+            // Collect the best features from the grid
+            for (const auto& kp : grid_best_features) {
+                if (kp.response > 0) {
                     n_pts.push_back(kp.pt);
+                    if (int(n_pts.size()) >= n_max_cnt) break;
                 }
             }
         }
