@@ -170,7 +170,38 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 cout << "mask type wrong " << endl;
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
-            cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
+            
+            // Use FAST detector as requested (faster than GFTT/Harris)
+            n_pts.clear();
+            vector<cv::KeyPoint> keypoints;
+            cv::FAST(forw_img, keypoints, FAST_THRESHOLD, true);
+            
+            // Sort by response to prioritize strong features
+            sort(keypoints.begin(), keypoints.end(), [](const cv::KeyPoint& a, const cv::KeyPoint& b) {
+                return a.response > b.response;
+            });
+
+            for (const auto& kp : keypoints) {
+                if (int(n_pts.size()) >= n_max_cnt) break;
+                
+                // Check against mask (distance to existing tracked features)
+                if (mask.at<uchar>(kp.pt) == 0) continue;
+
+                // Check distance to other new features
+                bool too_close = false;
+                for (const auto& p : n_pts) {
+                    float dx = p.x - kp.pt.x;
+                    float dy = p.y - kp.pt.y;
+                    if (dx*dx + dy*dy < MIN_DIST * MIN_DIST) {
+                        too_close = true;
+                        break;
+                    }
+                }
+                
+                if (!too_close) {
+                    n_pts.push_back(kp.pt);
+                }
+            }
         }
         else
             n_pts.clear();
