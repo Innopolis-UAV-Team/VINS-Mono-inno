@@ -5,8 +5,8 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /VIO1
+        - /VIO1/current_point1
         - /VIO1/history_point1
-        - /pose_graph1
       Splitter Ratio: 0.4651159942150116
     Tree Height: 269
   - Class: rviz/Selection
@@ -190,7 +190,7 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: FlatColor
           Decay Time: 3000
-          Enabled: true
+          Enabled: false
           Invert Rainbow: true
           Max Color: 0; 0; 0
           Max Intensity: 4096
@@ -207,7 +207,7 @@ Visualization Manager:
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: false
-          Value: true
+          Value: false
         - Class: rviz/TF
           Enabled: true
           Filter (blacklist): ""
@@ -515,7 +515,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 12.19190788269043
+      Distance: 24.42333221435547
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -523,17 +523,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: 1.3056825399398804
+        Y: 3.2989683151245117
+        Z: -2.6301847810827894e-06
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.509796380996704
+      Pitch: 1.5647963285446167
       Target Frame: camera
-      Yaw: 1.5567673444747925
+      Yaw: 0.7522110939025879
     Saved: ~
 Window Geometry:
   Displays:

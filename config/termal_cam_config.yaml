@@ -2,24 +2,24 @@
 
 #common parameters
 imu_topic: "/mavros/imu/data"
-image_topic: "/usb_cam/image_raw"
+image_topic: "/termal_cam/image_raw"
 output_path: "/home/op/output/"
 
 #camera calibration 
 model_type: PINHOLE
-camera_name: usb_camera
-image_width: 640
-image_height: 480
+camera_name: termal_camera
+image_width: 384
+image_height: 288
 distortion_parameters:
-   k1: 0.05164855018573922
-   k2: -0.04835348092937038
-   p1: 0.00473987181761685
-   p2: -0.00328630818706201
+   k1: -0.41373247158445464
+   k2: 0.16183802909949693
+   p1: -0.0004056243478585802
+   p2: -0.0022150821156080806
 projection_parameters:
-   fx: 473.4113628724277
-   fy: 473.5713828088313
-   cx: 311.4014706693625
-   cy: 256.9394802970527
+   fx: 382.1655349116403
+   fy: 381.916045874893
+   cx: 177.59980485848902
+   cy: 137.17607935580716
 
 # Extrinsic parameter between IMU and Camera.
 # Полученно из калибровки Kalibr
@@ -44,9 +44,9 @@ extrinsicRotation: !!opencv-matrix
    #        -0.04402128, -0.05292855, -0.99762753,
    #        -0.03160572, -0.99802194, 0.0543441]
 
-   data: [-1., 0., 0.,
-          0., 0., -1.,
-          0., -1., 0.0]
+   data: [0., 0., 1.,
+          -1., 0., 0.,
+          0., -1., 0.]
 #Translation from camera frame to imu frame, imu^T_cam
 # Из калибровки Kalibr
 extrinsicTranslation: !!opencv-matrix
@@ -56,13 +56,13 @@ extrinsicTranslation: !!opencv-matrix
    data: [0.00, 0.000, 0.00]
 
 #feature traker paprameters
-max_cnt: 150            # max feature number in feature tracking
-min_dist: 10            # min distance between two features 
+max_cnt: 180             # max feature number in feature tracking (reduced to filter noise)
+min_dist: 20            # min distance between two features (grid cell size, increased for less noise)
 freq: 20                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
-F_threshold: 1.0        # ransac threshold (pixel)
-fast_threshold: 20      # threshold for AGAST corner detector (default: 20)
+F_threshold: 1.0        # ransac threshold (pixel) - stricter to reject outliers
+fast_threshold: 20      # threshold for AGAST corner detector (increased to select stronger corners)
 show_track: 1           # publish tracking image as topic
-equalize: 0             # if image is too dark or light, trun on equalize to find enough features
+equalize: 1             # if image is too dark or light, trun on equalize to find enough features (ENABLED for thermal)
 fisheye: 0              # if using fisheye, trun on it. A circle mask will be loaded to remove edge noisy points
 
 #optimization parameters
