@@ -16,6 +16,7 @@ double SOLVER_TIME;
 int NUM_ITERATIONS;
 int ESTIMATE_EXTRINSIC;
 int ESTIMATE_TD;
+double TD_ESTIMATION_PERIOD = 7.0; // seconds between td optimization bursts
 int ROLLING_SHUTTER;
 std::string EX_CALIB_RESULT_PATH;
 std::string VINS_RESULT_PATH;
@@ -120,8 +121,10 @@ void readParameters(ros::NodeHandle &n)
 
     TD = fsSettings["td"];
     ESTIMATE_TD = fsSettings["estimate_td"];
+    if (!fsSettings["estimate_td_period"].empty())
+        TD_ESTIMATION_PERIOD = (double)fsSettings["estimate_td_period"];
     if (ESTIMATE_TD)
-        ROS_INFO_STREAM("Unsynchronized sensors, online estimate time offset, initial td: " << TD);
+        ROS_INFO_STREAM("Unsynchronized sensors, online estimate time offset, initial td: " << TD << ", period: " << TD_ESTIMATION_PERIOD << " s");
     else
         ROS_INFO_STREAM("Synchronized sensors, fix time offset: " << TD);
 

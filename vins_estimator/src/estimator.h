@@ -115,6 +115,10 @@ class Estimator
     double para_Td[1][1];
     double para_Tr[1][1];
 
+    // Time offset estimation gating
+    double last_td_opt_time;   // wall time of last td optimization (seconds)
+    bool td_updated;           // flag: td was optimized in current frame
+
     int loop_window_index;
 
     MarginalizationInfo *last_marginalization_info;

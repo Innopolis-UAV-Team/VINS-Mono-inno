@@ -11,6 +11,15 @@
   - Broadcast created post-`ros::init` to avoid initialization crashes
 - **Dependencies updated**: added `tf` to `pose_graph` package (CMake/package.xml)
 
+### Modified - Time Offset Estimation (td)
+- **Periodic td optimization** to reduce runtime cost: td parameter is optimized in short bursts every `estimate_td_period` seconds (default 7s)
+- When idle between bursts, td stays constant and projection factors fall back to fast version without td term
+- Optional config key `estimate_td_period` added (seconds)
+- **Logging improvements**:
+  - `td` value printed only when optimization occurs (not every frame)
+  - Optimized trajectory position (`x, y, z`) printed every frame for monitoring
+  - Format: `Optimized pose: x=... y=... z=...` and `td updated: ...` (when changed)
+
 #### Accelerometer Outlier Rejection
 - **Spike detection and filtering** for noisy 9-DOF IMU data
   - Detects sudden acceleration changes exceeding configurable threshold (default: 50 m/s²)

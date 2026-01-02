@@ -3,6 +3,8 @@
 Estimator::Estimator(): f_manager{Rs}
 {
     ROS_INFO("init begins");
+    last_td_opt_time = -1.0;
+    td_updated = false;
     clearState();
 }
 
@@ -79,6 +81,8 @@ void Estimator::clearState()
 
     drift_correct_r = Matrix3d::Identity();
     drift_correct_t = Vector3d::Zero();
+
+    last_td_opt_time = -1.0;
 }
 
 void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity)
@@ -687,6 +691,20 @@ void Estimator::optimization()
     ceres::LossFunction *loss_function;
     //loss_function = new ceres::HuberLoss(1.0);
     loss_function = new ceres::CauchyLoss(1.0);
+
+    // Run td optimization only periodically to reduce overhead
+    bool estimate_td_active = false;
+    td_updated = false;
+    if (ESTIMATE_TD)
+    {
+        double now = ros::Time::now().toSec();
+        if (last_td_opt_time < 0 || now - last_td_opt_time >= TD_ESTIMATION_PERIOD)
+        {
+            estimate_td_active = true;
+            td_updated = true;
+            last_td_opt_time = now;
+        }
+    }
     for (int i = 0; i < WINDOW_SIZE + 1; i++)
     {
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
@@ -708,7 +726,8 @@ void Estimator::optimization()
     if (ESTIMATE_TD)
     {
         problem.AddParameterBlock(para_Td[0], 1);
-        //problem.SetParameterBlockConstant(para_Td[0]);
+        if (!estimate_td_active)
+            problem.SetParameterBlockConstant(para_Td[0]);
     }
 
     TicToc t_whole, t_prepare;
@@ -752,7 +771,7 @@ void Estimator::optimization()
                 continue;
             }
             Vector3d pts_j = it_per_frame.point;
-            if (ESTIMATE_TD)
+                if (ESTIMATE_TD && estimate_td_active)
             {
                     ProjectionTdFactor *f_td = new ProjectionTdFactor(pts_i, pts_j, it_per_id.feature_per_frame[0].velocity, it_per_frame.velocity,
                                                                      it_per_id.feature_per_frame[0].cur_td, it_per_frame.cur_td,
@@ -894,7 +913,7 @@ void Estimator::optimization()
                         continue;
 
                     Vector3d pts_j = it_per_frame.point;
-                    if (ESTIMATE_TD)
+                    if (ESTIMATE_TD && estimate_td_active)
                     {
                         ProjectionTdFactor *f_td = new ProjectionTdFactor(pts_i, pts_j, it_per_id.feature_per_frame[0].velocity, it_per_frame.velocity,
                                                                           it_per_id.feature_per_frame[0].cur_td, it_per_frame.cur_td,

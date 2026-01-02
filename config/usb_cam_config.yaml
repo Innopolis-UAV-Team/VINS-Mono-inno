@@ -87,6 +87,7 @@ pose_graph_save_path: "/home/op/output/pose_graph/" # save and load path
 
 #unsynchronization parameters
 estimate_td: 1                      # online estimate time offset between camera and imu (ОТКЛЮЧЕНО для стабильности)
+estimate_td_period: 7.0             # seconds between td optimization bursts
 td: -0.1                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
 
 #rolling shutter parameters

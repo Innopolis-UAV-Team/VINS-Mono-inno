@@ -35,6 +35,7 @@ extern std::string IMU_TOPIC;
 extern double TD;
 extern double TR;
 extern int ESTIMATE_TD;
+extern double TD_ESTIMATION_PERIOD; // seconds between td optimization bursts
 extern int ROLLING_SHUTTER;
 extern double ROW, COL;
 extern int ENABLE_ZUPT;

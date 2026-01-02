@@ -87,6 +87,7 @@ pose_graph_save_path: "/home/op/output/pose_graph/" # save and load path
 
 #unsynchronization parameters
 estimate_td: 1                      # online estimate time offset between camera and imu (DISABLED for stability)
+estimate_td_period: 7.0             # seconds between td optimization bursts
 td: -0.1                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
 
 #rolling shutter parameters
@@ -100,8 +101,8 @@ visualize_camera_size: 0.4      # size of camera marker in RVIZ
 
 #zero velocity update (ZUPT) parameters
 enable_zupt: 1                  # enable zero velocity update to prevent drift when stationary
-zupt_vel_threshold: 0.2        # velocity threshold (m/s) for detecting stationary state
-zupt_acc_threshold: 0.2         # acceleration deviation threshold (m/s^2) from gravity
+zupt_vel_threshold: 0.5        # velocity threshold (m/s) for detecting stationary state
+zupt_acc_threshold: 0.5         # acceleration deviation threshold (m/s^2) from gravity
 
 #imu filtering parameters
 enable_imu_acc_filter: 1        # enable accelerometer outlier rejection and smoothing
