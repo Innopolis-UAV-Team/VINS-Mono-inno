@@ -12,6 +12,8 @@
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PointStamped.h>
 #include <nav_msgs/Odometry.h>
+#include <tf/transform_broadcaster.h>
+#include <memory>
 #include <stdio.h>
 #include <ros/ros.h>
 #include "keyframe.h"
@@ -84,6 +86,7 @@ private:
 	ros::Publisher pub_base_path;
 	ros::Publisher pub_pose_graph;
 	ros::Publisher pub_path[10];
+	std::shared_ptr<tf::TransformBroadcaster> tf_broadcaster;
 };
 
 template <typename T>

@@ -7,7 +7,7 @@
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
-#include <nav_msgs/Odometry.h>
+#include <geometry_msgs/TwistStamped.h>
 
 #include "estimator.h"
 #include "parameters.h"
@@ -47,7 +47,9 @@ bool acc_initialized = false;
 const double MAX_ACC_CHANGE = 50.0;  // m/s² - maximum allowed acceleration change
 const double ACC_FILTER_ALPHA = 0.8; // exponential filter coefficient (higher = more smoothing)
 
-// Altitude-based scale correction
+// Altitude-based scale correction from MAVLink velocity
+// Uses /mavros/local_position/velocity_local (geometry_msgs/TwistStamped)
+// Global frame velocity: Z is always up regardless of IMU orientation
 double mavlink_altitude = 0.0;
 double mavlink_vz = 0.0;
 bool mavlink_odom_received = false;
@@ -239,11 +241,25 @@ void relocalization_callback(const sensor_msgs::PointCloudConstPtr &points_msg)
     m_buf.unlock();
 }
 
-void mavlink_odom_callback(const nav_msgs::Odometry::ConstPtr &odom_msg)
+void mavlink_velocity_callback(const geometry_msgs::TwistStamped::ConstPtr &vel_msg)
 {
     m_odom.lock();
-    mavlink_altitude = odom_msg->pose.pose.position.z;
-    mavlink_vz = odom_msg->twist.twist.linear.z;
+    // Use only Z velocity (vertical) from normalized global velocity vector
+    // Z is always up regardless of IMU orientation
+    mavlink_vz = vel_msg->twist.linear.z;
+    
+    // Integrate Z velocity to get altitude for scale correction
+    static double last_vel_time = -1;
+    double current_vel_time = vel_msg->header.stamp.toSec();
+    
+    if (last_vel_time > 0) {
+        double dt = current_vel_time - last_vel_time;
+        if (dt > 0 && dt < 0.5) {  // Sanity check: dt < 0.5s
+            mavlink_altitude += mavlink_vz * dt;
+        }
+    }
+    last_vel_time = current_vel_time;
+    
     mavlink_odom_received = true;
     m_odom.unlock();
 }
@@ -428,7 +444,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
-    ros::Subscriber sub_mavlink_odom = n.subscribe("/mavros/local_position/odom", 100, mavlink_odom_callback);
+    ros::Subscriber sub_mavlink_vel = n.subscribe("/mavros/local_position/velocity_local", 100, mavlink_velocity_callback);
 
     std::thread measurement_process{process};
     ros::spin();

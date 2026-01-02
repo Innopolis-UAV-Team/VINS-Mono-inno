@@ -4,6 +4,13 @@
 
 ### Added - IMU Data Filtering & Scale Correction
 
+### Added - Pose Graph TF Publishing (Loop-Closed Frame)
+- **TF transform `world -> camera_pose_graph`** now published from `pose_graph` after loop-closure correction
+  - Uses loop-closed pose (`r_drift`, `t_drift`) exactly matching `/pose_graph/pose_graph_path`
+  - Frame id: `world`; Child frame: `camera_pose_graph`
+  - Broadcast created post-`ros::init` to avoid initialization crashes
+- **Dependencies updated**: added `tf` to `pose_graph` package (CMake/package.xml)
+
 #### Accelerometer Outlier Rejection
 - **Spike detection and filtering** for noisy 9-DOF IMU data
   - Detects sudden acceleration changes exceeding configurable threshold (default: 50 m/s²)
@@ -19,9 +26,12 @@
   - Formula: `filtered = alpha * prev_filtered + (1-alpha) * current`
 
 #### Altitude-Based Scale Correction
-- **MAVLink odometry integration** for scale drift prevention
-  - Subscribes to `/mavros/local_position/odom` (nav_msgs/Odometry)
-  - Uses barometer-fused altitude as ground truth reference
+- **MAVLink velocity integration** for scale drift prevention
+  - Subscribes to `/mavros/local_position/velocity_local` (geometry_msgs/TwistStamped)
+  - Uses **only Z-component** of normalized global velocity vector
+  - **Z-axis always points up** regardless of IMU orientation (global frame)
+  - X and Y velocities ignored (unreliable in local position estimate)
+  - Integrates vertical velocity to estimate altitude
   - Corrects monocular VIO scale drift using altitude comparison
   - Gentle correction with configurable strength (default: 10% per update)
   - Safety bounds: only corrects scale ratio between 0.8-1.2

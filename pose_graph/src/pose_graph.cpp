@@ -1,4 +1,5 @@
 #include "pose_graph.h"
+#include <tf/transform_broadcaster.h>
 
 PoseGraph::PoseGraph()
 {
@@ -31,6 +32,9 @@ void PoseGraph::registerPub(ros::NodeHandle &n)
     pub_pose_graph = n.advertise<visualization_msgs::MarkerArray>("pose_graph", 1000);
     for (int i = 1; i < 10; i++)
         pub_path[i] = n.advertise<nav_msgs::Path>("path_" + to_string(i), 1000);
+
+    // Create TF broadcaster after ros::init is done (registerPub is called after ros::init)
+    tf_broadcaster.reset(new tf::TransformBroadcaster());
 }
 
 void PoseGraph::loadVocabulary(std::string voc_path)
@@ -147,6 +151,13 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     pose_stamped.pose.orientation.w = Q.w();
     path[sequence_cnt].poses.push_back(pose_stamped);
     path[sequence_cnt].header = pose_stamped.header;
+
+    // Publish corrected pose to TF (world -> camera_pose_graph)
+    tf::Transform transform;
+    transform.setOrigin(tf::Vector3(P.x(), P.y(), P.z()));
+    transform.setRotation(tf::Quaternion(Q.x(), Q.y(), Q.z(), Q.w()));
+    if (tf_broadcaster)
+        tf_broadcaster->sendTransform(tf::StampedTransform(transform, pose_stamped.header.stamp, "world", "camera_pose_graph"));
 
     if (SAVE_LOOP_PATH)
     {
