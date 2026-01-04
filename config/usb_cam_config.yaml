@@ -62,6 +62,7 @@ freq: 20                # frequence (Hz) of publish tracking result. At least 10
 F_threshold: 1.0        # ransac threshold (pixel)
 fast_threshold: 20      # threshold for AGAST corner detector (default: 20)
 use_bidirectional_flow: 0  # DISABLED for speed (forward-only tracking)
+use_advanced_flow: 1        # 1 = advanced LK (term crit + optional backward check), 0 = basic LK
 show_track: 1           # publish tracking image as topic
 equalize: 0             # if image is too dark or light, trun on equalize to find enough features
 fisheye: 0              # if using fisheye, trun on it. A circle mask will be loaded to remove edge noisy points

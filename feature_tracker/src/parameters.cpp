@@ -19,6 +19,7 @@ int FISHEYE;
 bool PUB_THIS_FRAME;
 int FAST_THRESHOLD;
 int USE_BIDIRECTIONAL_FLOW;
+int USE_ADVANCED_FLOW;
 
 // Adaptive feature tracking
 double MAX_VELOCITY_THRESHOLD = 5.0;  // m/s
@@ -76,6 +77,12 @@ void readParameters(ros::NodeHandle &n)
         USE_BIDIRECTIONAL_FLOW = fsSettings["use_bidirectional_flow"];
     else
         USE_BIDIRECTIONAL_FLOW = 1;
+
+    // Switch between basic and advanced optical flow (default: advanced)
+    if (!fsSettings["use_advanced_flow"].empty())
+        USE_ADVANCED_FLOW = fsSettings["use_advanced_flow"];
+    else
+        USE_ADVANCED_FLOW = 1;
     
     // Adaptive tracking parameters
     ENABLE_VELOCITY_CHECK = fsSettings["enable_velocity_check"].empty() ? 1 : (int)fsSettings["enable_velocity_check"];

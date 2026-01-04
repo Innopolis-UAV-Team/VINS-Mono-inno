@@ -24,6 +24,7 @@ extern int FISHEYE;
 extern bool PUB_THIS_FRAME;
 extern int FAST_THRESHOLD;
 extern int USE_BIDIRECTIONAL_FLOW;
+extern int USE_ADVANCED_FLOW;
 
 // Adaptive feature tracking for high-speed scenarios
 extern double MAX_VELOCITY_THRESHOLD;  // m/s - threshold to detect high-speed motion

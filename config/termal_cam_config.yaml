@@ -61,7 +61,8 @@ min_dist: 15            # min distance between features (larger spacing = fewer 
 freq: 0                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 2.0        # ransac threshold (thermal: more tolerance for noise)
 fast_threshold: 20      # threshold for AGAST corner detector (higher = fewer but stronger features)
-use_bidirectional_flow: 0  # DISABLED for speed (forward-only tracking)
+use_bidirectional_flow: 1  # DISABLED for speed (forward-only tracking)
+use_advanced_flow: 1        # 1 = advanced LK (term crit + optional backward check), 0 = basic LK
 show_track: 1           # publish tracking image as topic
 equalize: 1             # if image is too dark or light, trun on equalize to find enough features
 fisheye: 0  

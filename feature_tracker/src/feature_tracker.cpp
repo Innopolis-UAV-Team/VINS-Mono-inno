@@ -38,11 +38,7 @@ FeatureTracker::FeatureTracker()
 
 void FeatureTracker::setMask()
 {
-    if(FISHEYE)
-        mask = fisheye_mask.clone();
-    else
-        mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
-    
+    mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
 
     // prefer to keep features that are tracked for long time
     vector<pair<int, pair<cv::Point2f, int>>> cnt_pts_id;
@@ -115,33 +111,42 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         TicToc t_o;
         vector<uchar> status;
         vector<float> err;
-        cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3, 
-                                 cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 40, 0.001));
 
-        // Forward-Backward Tracking Check (optional for performance)
-        if (USE_BIDIRECTIONAL_FLOW)
+        if (USE_ADVANCED_FLOW)
         {
-            vector<uchar> reverse_status;
-            vector<cv::Point2f> reverse_pts = cur_pts;
-            cv::calcOpticalFlowPyrLK(forw_img, cur_img, forw_pts, reverse_pts, reverse_status, err, cv::Size(21, 21), 3, 
-                                     cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 40, 0.001));
-            
-            for(size_t i = 0; i < status.size(); i++)
+            // Advanced LK: stricter termination and optional forward-backward consistency
+            cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3,
+                                     cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 40, 0.001));
+
+            if (USE_BIDIRECTIONAL_FLOW)
             {
-                if(status[i] && reverse_status[i])
+                vector<uchar> reverse_status;
+                vector<cv::Point2f> reverse_pts = cur_pts;
+                cv::calcOpticalFlowPyrLK(forw_img, cur_img, forw_pts, reverse_pts, reverse_status, err, cv::Size(21, 21), 3,
+                                         cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 40, 0.001));
+
+                for (size_t i = 0; i < status.size(); i++)
                 {
-                    cv::Point2f dist_pt = cur_pts[i] - reverse_pts[i];
-                    float dist = (dist_pt.x * dist_pt.x + dist_pt.y * dist_pt.y);
-                    if(dist > 0.5) // 0.5 pixel squared error threshold (approx 0.7 px distance)
+                    if (status[i] && reverse_status[i])
+                    {
+                        cv::Point2f dist_pt = cur_pts[i] - reverse_pts[i];
+                        float dist = (dist_pt.x * dist_pt.x + dist_pt.y * dist_pt.y);
+                        if (dist > 0.5) // 0.5 pixel squared error threshold (approx 0.7 px distance)
+                        {
+                            status[i] = 0;
+                        }
+                    }
+                    else
                     {
                         status[i] = 0;
                     }
                 }
-                else
-                {
-                    status[i] = 0;
-                }
             }
+        }
+        else
+        {
+            // Basic LK flow (original behavior) without advanced termination or backward check
+            cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
         }
 
         for (int i = 0; i < int(forw_pts.size()); i++)
@@ -209,61 +214,60 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         {
             if(mask.empty())
                 cout << "mask is empty " << endl;
-            if (mask.type() != CV_8UC1)
+            if(mask.type() != CV_8UC1)
                 cout << "mask type wrong " << endl;
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
-            
-            // Use AGAST detector (improved version of FAST)
-            n_pts.clear();
-            vector<cv::KeyPoint> keypoints;
-            // AGAST_5_8 is generally more robust than FAST
-            cv::AGAST(forw_img, keypoints, FAST_THRESHOLD, true);
-            
-            // Grid-based selection to ensure uniform distribution (User request: Grid -> uniformly select)
-            // We divide the image into cells of size MIN_DIST and pick the strongest feature in each cell
-            int grid_size = MIN_DIST; 
-            int grid_cols = COL / grid_size + 1;
-            
-            // Use unordered_map to store only occupied grid cells (more memory efficient)
-            std::unordered_map<int, cv::KeyPoint> grid_best_features;
-            
-            for (const auto& kp : keypoints) {
-                // Check against mask (distance to existing tracked features)
-                // mask is 0 where existing features are (setMask draws circles)
-                if (mask.at<uchar>(kp.pt) == 0) continue;
 
-                int r = int(kp.pt.y) / grid_size;
-                int c = int(kp.pt.x) / grid_size;
-                int idx = r * grid_cols + c;
-                
-                // Keep the feature with the highest response in this grid cell
-                auto it = grid_best_features.find(idx);
-                if (it == grid_best_features.end() || kp.response > it->second.response) {
-                    grid_best_features[idx] = kp;
+            n_pts.clear();
+
+            if (USE_ADVANCED_FLOW)
+            {
+                // AGAST + grid selection (current enhanced method)
+                vector<cv::KeyPoint> keypoints;
+                cv::AGAST(forw_img, keypoints, FAST_THRESHOLD, true);
+
+                int grid_size = MIN_DIST; 
+                int grid_cols = COL / grid_size + 1;
+                std::unordered_map<int, cv::KeyPoint> grid_best_features;
+
+                for (const auto& kp : keypoints) {
+                    if (mask.at<uchar>(kp.pt) == 0) continue;
+                    int r = int(kp.pt.y) / grid_size;
+                    int c = int(kp.pt.x) / grid_size;
+                    int idx = r * grid_cols + c;
+                    auto it = grid_best_features.find(idx);
+                    if (it == grid_best_features.end() || kp.response > it->second.response) {
+                        grid_best_features[idx] = kp;
+                    }
+                }
+
+                for (const auto& grid_cell : grid_best_features) {
+                    n_pts.push_back(grid_cell.second.pt);
+                    if (int(n_pts.size()) >= n_max_cnt) break;
+                }
+
+                if (!n_pts.empty())
+                {
+                    // Subpixel refine strongest points only
+                    int refine_count = std::min(50, (int)n_pts.size());
+                    if (refine_count > 0) {
+                        vector<cv::Point2f> pts_to_refine(n_pts.begin(), n_pts.begin() + refine_count);
+                        cv::TermCriteria criteria = cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 40, 0.001);
+                        cv::cornerSubPix(forw_img, pts_to_refine, cv::Size(5, 5), cv::Size(-1, -1), criteria);
+                        std::copy(pts_to_refine.begin(), pts_to_refine.end(), n_pts.begin());
+                    }
                 }
             }
-
-            // Collect the best features from the grid
-            for (const auto& grid_cell : grid_best_features) {
-                n_pts.push_back(grid_cell.second.pt);
-                if (int(n_pts.size()) >= n_max_cnt) break;
+            else
+            {
+                // Original VINS-Fusion style: Shi-Tomasi (goodFeaturesToTrack)
+                cv::goodFeaturesToTrack(forw_img, n_pts, n_max_cnt, 0.01, MIN_DIST, mask);
             }
         }
         else
-            n_pts.clear();
-
-        if (!n_pts.empty())
         {
-            // Smart SubPixel: apply only to top strong candidates to save time
-            int refine_count = std::min(50, (int)n_pts.size());
-            if (refine_count > 0) {
-                vector<cv::Point2f> pts_to_refine(n_pts.begin(), n_pts.begin() + refine_count);
-                cv::TermCriteria criteria = cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 40, 0.001);
-                cv::cornerSubPix(forw_img, pts_to_refine, cv::Size(5, 5), cv::Size(-1, -1), criteria);
-                // Copy refined points back
-                std::copy(pts_to_refine.begin(), pts_to_refine.end(), n_pts.begin());
-            }
+            n_pts.clear();
         }
 
         ROS_DEBUG("detect feature costs: %fms", t_t.toc());
